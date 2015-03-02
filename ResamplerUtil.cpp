@@ -1,16 +1,8 @@
-﻿//------------------------------------------------------------------------------
-// <copyright file="ResamplerUtil.cpp" company="Microsoft">
-//     Copyright (c) Microsoft Corporation.  All rights reserved.
-// </copyright>
-//------------------------------------------------------------------------------
-
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "ResamplerUtil.h"
 #include "wmcodecdsp.h"
 
-/// <summary>
 /// Gets the appropriate Media Foundation audio media subtype from the specified wave format.
-/// </summary>
 /// <param name="pwfx">
 /// [in] Input wave format to convert.
 /// </param>
@@ -20,12 +12,10 @@
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT GetMediaSubtype(const WAVEFORMATEX* pwfx, GUID *pSubType)
-{
+HRESULT GetMediaSubtype(const WAVEFORMATEX* pwfx, GUID *pSubType) {
     HRESULT hr = S_OK;
 
-    switch(pwfx->wFormatTag)
-    {
+    switch(pwfx->wFormatTag) {
     case WAVE_FORMAT_PCM:
     case WAVE_FORMAT_IEEE_FLOAT:
     case WAVE_FORMAT_DTS:
@@ -39,8 +29,7 @@ HRESULT GetMediaSubtype(const WAVEFORMATEX* pwfx, GUID *pSubType)
     case WAVE_FORMAT_MPEGLAYER3:
     case WAVE_FORMAT_MPEG:
     case WAVE_FORMAT_MPEG_HEAAC:
-    case WAVE_FORMAT_MPEG_ADTS_AAC:
-        {
+    case WAVE_FORMAT_MPEG_ADTS_AAC: {
             // These format tags map 1-to-1 to Media Foundation formats.
             // The MSDN topic http://msdn.microsoft.com/en-us/library/aa372553(VS.85).aspx indicates that
             // to create an audio subtype GUID one can:
@@ -53,27 +42,22 @@ HRESULT GetMediaSubtype(const WAVEFORMATEX* pwfx, GUID *pSubType)
             break;
         }
 
-    case WAVE_FORMAT_EXTENSIBLE:
-        {
+    case WAVE_FORMAT_EXTENSIBLE: {
             const WAVEFORMATEXTENSIBLE* pExtensible = reinterpret_cast<const WAVEFORMATEXTENSIBLE*>(pwfx);
             // We only support PCM and IEEE float subtypes for extensible wave formats
-            if (pExtensible->SubFormat == KSDATAFORMAT_SUBTYPE_PCM)
-            {
+            if (pExtensible->SubFormat == KSDATAFORMAT_SUBTYPE_PCM) {
                 *pSubType = MFAudioFormat_PCM;
             }
-            else if (pExtensible->SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
-            {
+            else if (pExtensible->SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT) {
                 *pSubType = MFAudioFormat_Float;
             }
-            else
-            {
+            else {
                 hr = E_INVALIDARG;
             }
             break;
         }
 
-    default:
-        {
+    default: {
             hr = E_INVALIDARG;
             break;
         }
@@ -82,9 +66,7 @@ HRESULT GetMediaSubtype(const WAVEFORMATEX* pwfx, GUID *pSubType)
     return hr;
 }
 
-/// <summary>
 /// Converts the specified wave format into the appropriate Media Foundation audio media type.
-/// </summary>
 /// <param name="pwfx">
 /// [in] Input wave format to convert.
 /// </param>
@@ -94,22 +76,19 @@ HRESULT GetMediaSubtype(const WAVEFORMATEX* pwfx, GUID *pSubType)
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT CreateMediaType(const WAVEFORMATEX* pwfx, IMFMediaType** ppType)
-{
+HRESULT CreateMediaType(const WAVEFORMATEX* pwfx, IMFMediaType** ppType) {
     HRESULT hr = S_OK;
     IMFMediaType* pType = NULL;
     GUID guidSubType;
 
     // Create the empty media type.
     hr = MFCreateMediaType(&pType);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         return hr;
     }
 
     hr = GetMediaSubtype(pwfx, &guidSubType);
-    if (SUCCEEDED(hr))
-    {
+    if (SUCCEEDED(hr)) {
         // Calculate derived values.
         UINT32 blockAlign = pwfx->nChannels * (pwfx->wBitsPerSample / 8);
         UINT32 bytesPerSecond = blockAlign * pwfx->nSamplesPerSec;
@@ -133,10 +112,8 @@ HRESULT CreateMediaType(const WAVEFORMATEX* pwfx, IMFMediaType** ppType)
     return hr;
 }
 
-/// <summary>
 /// Create Media Foundation transform that resamples audio in specified input format
 /// into specified output format.
-/// </summary>
 /// <param name="pwfxIn">
 /// [in] Wave format input to resampling operation.
 /// </param>
@@ -149,31 +126,25 @@ HRESULT CreateMediaType(const WAVEFORMATEX* pwfx, IMFMediaType** ppType)
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT CreateResampler(const WAVEFORMATEX* pwfxIn, const WAVEFORMATEX* pwfxOut, IMFTransform **ppResampler)
-{
+HRESULT CreateResampler(const WAVEFORMATEX* pwfxIn, const WAVEFORMATEX* pwfxOut, IMFTransform **ppResampler) {
     HRESULT hr = S_OK;
     IMFMediaType* pInputType = NULL;
     IMFMediaType* pOutputType = NULL;
     IMFTransform* pResampler = NULL;
 
     hr = CoCreateInstance(CLSID_CResamplerMediaObject, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pResampler));
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         return hr;
     }
 
     hr = CreateMediaType(pwfxIn, &pInputType);
-    if (SUCCEEDED(hr))
-    {
+    if (SUCCEEDED(hr)) {
         hr = pResampler->SetInputType(0, pInputType, 0);
-        if (SUCCEEDED(hr))
-        {
+        if (SUCCEEDED(hr)) {
             hr = CreateMediaType(pwfxOut, &pOutputType);
-            if (SUCCEEDED(hr))
-            {
+            if (SUCCEEDED(hr)) {
                 hr = pResampler->SetOutputType(0, pOutputType, 0);
-                if (SUCCEEDED(hr))
-                {
+                if (SUCCEEDED(hr)) {
                     *ppResampler = pResampler;
                     pResampler = NULL;
                 }
@@ -187,10 +158,9 @@ HRESULT CreateResampler(const WAVEFORMATEX* pwfxIn, const WAVEFORMATEX* pwfxOut,
     return hr;
 }
 
-/// <summary>
 /// Create a media buffer to be used as input or output for resampler.
-/// </summary>
 /// <param name="bufferSize">
+
 /// [in] Size of buffer to create.
 /// </param>
 /// <param name="ppSample">
@@ -202,24 +172,20 @@ HRESULT CreateResampler(const WAVEFORMATEX* pwfxIn, const WAVEFORMATEX* pwfxOut,
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT CreateResamplerBuffer(size_t bufferSize, IMFSample** ppSample, IMFMediaBuffer** ppBuffer)
-{
+HRESULT CreateResamplerBuffer(size_t bufferSize, IMFSample** ppSample, IMFMediaBuffer** ppBuffer) {
     IMFSample* pSample = NULL;
     IMFMediaBuffer* pBuffer = NULL;
     HRESULT hr = S_OK;
     
     hr = MFCreateSample(&pSample);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         return hr;
     }
 
     hr = MFCreateMemoryBuffer(static_cast<DWORD>(bufferSize), &pBuffer);
-    if (SUCCEEDED(hr))
-    {
+    if (SUCCEEDED(hr)) {
         hr = pSample->AddBuffer(pBuffer);
-        if (SUCCEEDED(hr))
-        {
+        if (SUCCEEDED(hr)) {
             *ppSample = pSample;
             pSample = NULL;
             *ppBuffer = pBuffer;

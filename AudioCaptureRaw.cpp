@@ -1,10 +1,4 @@
-﻿//------------------------------------------------------------------------------
-// <copyright file="AudioCaptureRaw.cpp" company="Microsoft">
-//     Copyright (c) Microsoft Corporation.  All rights reserved.
-// </copyright>
-//------------------------------------------------------------------------------
-
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include <nuiapi.h>
 #include <shlobj.h>
 #include <wchar.h>
@@ -15,9 +9,7 @@
 // Number of milliseconds of acceptable lag between live sound being produced and recording operation.
 const int TargetLatency = 20;
 
-/// <summary>
 /// Get global ID for specified device.
-/// </summary>
 /// <param name="pDevice">
 /// [in] Audio device for which we're getting global ID.
 /// </param>
@@ -27,24 +19,20 @@ const int TargetLatency = 20;
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT GetGlobalId(IMMDevice *pDevice, wchar_t **ppszGlobalId)
-{
+HRESULT GetGlobalId(IMMDevice *pDevice, wchar_t **ppszGlobalId) {
     IDeviceTopology *pTopology = NULL;
     HRESULT hr = S_OK;
 
     hr = pDevice->Activate(__uuidof(IDeviceTopology), CLSCTX_INPROC_SERVER, NULL, reinterpret_cast<void**>(&pTopology));
-    if (SUCCEEDED(hr))
-    {
+    if (SUCCEEDED(hr)) {
         IConnector *pPlug = NULL;
 
         hr = pTopology->GetConnector(0, &pPlug);
-        if (SUCCEEDED(hr))
-        {
+        if (SUCCEEDED(hr)) {
             IConnector *pJack = NULL;
 
             hr = pPlug->GetConnectedTo(&pJack);
-            if (SUCCEEDED(hr))
-            {
+            if (SUCCEEDED(hr)) {
                 IPart *pJackAsPart = NULL;
                 pJack->QueryInterface(IID_PPV_ARGS(&pJackAsPart));
 
@@ -61,9 +49,7 @@ HRESULT GetGlobalId(IMMDevice *pDevice, wchar_t **ppszGlobalId)
     return hr;
 }
 
-/// <summary>
 /// Determine if a global audio device ID corresponds to a Kinect sensor.
-/// </summary>
 /// <param name="pNuiSensor">
 /// [in] A Kinect sensor.
 /// </param>
@@ -83,8 +69,7 @@ bool IsMatchingAudioDevice(INuiSensor *pNuiSensor, wchar_t *pszGlobalId)
 
     // Make strings have the same internal delimiters
     wistring::size_type findIndex = strArrayName.find(L'\\');
-    while (strArrayName.npos != findIndex)
-    {
+    while (strArrayName.npos != findIndex) {
         strArrayName[findIndex] = L'#';
         findIndex = strArrayName.find(L'\\', findIndex + 1);
     }
@@ -96,9 +81,7 @@ bool IsMatchingAudioDevice(INuiSensor *pNuiSensor, wchar_t *pszGlobalId)
     return match;
 }
 
-/// <summary>
 /// Get an audio device that corresponds to the specified Kinect sensor, if such a device exists.
-/// </summary>
 /// <param name="pNuiSensor">
 /// [in] Kinect sensor for which we'll find a corresponding audio device.
 /// </param>
@@ -108,8 +91,7 @@ bool IsMatchingAudioDevice(INuiSensor *pNuiSensor, wchar_t *pszGlobalId)
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT GetMatchingAudioDevice(INuiSensor *pNuiSensor, IMMDevice **ppDevice)
-{
+HRESULT GetMatchingAudioDevice(INuiSensor *pNuiSensor, IMMDevice **ppDevice) {
     IMMDeviceEnumerator *pDeviceEnumerator = NULL;
     IMMDeviceCollection *pDdeviceCollection = NULL;
     HRESULT hr = S_OK;
@@ -117,28 +99,22 @@ HRESULT GetMatchingAudioDevice(INuiSensor *pNuiSensor, IMMDevice **ppDevice)
     *ppDevice = NULL;
 
     hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pDeviceEnumerator));
-    if (SUCCEEDED(hr))
-    {
+    if (SUCCEEDED(hr)) {
         hr = pDeviceEnumerator->EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE, &pDdeviceCollection);
-        if (SUCCEEDED(hr))
-        {
+        if (SUCCEEDED(hr)) {
             UINT deviceCount;
             hr = pDdeviceCollection->GetCount(&deviceCount);
-            if (SUCCEEDED(hr))
-            {
+            if (SUCCEEDED(hr)) {
                 // Iterate through all active audio capture devices looking for one that matches
                 // the specified Kinect sensor.
-                for (UINT i = 0 ; i < deviceCount; ++i)
-                {
+                for (UINT i = 0 ; i < deviceCount; ++i) {
                     IMMDevice *pDevice = NULL;
 
                     hr = pDdeviceCollection->Item(i, &pDevice);
-                    if (SUCCEEDED(hr))
-                    {
+                    if (SUCCEEDED(hr)) {
                         wchar_t *pszGlobalId = NULL;
                         hr = GetGlobalId(pDevice, &pszGlobalId);
-                        if (SUCCEEDED(hr) && IsMatchingAudioDevice(pNuiSensor, pszGlobalId))
-                        {
+                        if (SUCCEEDED(hr) && IsMatchingAudioDevice(pNuiSensor, pszGlobalId)) {
                             *ppDevice = pDevice;
                             CoTaskMemFree(pszGlobalId);
                             break;
@@ -157,8 +133,7 @@ HRESULT GetMatchingAudioDevice(INuiSensor *pNuiSensor, IMMDevice **ppDevice)
         SafeRelease(pDeviceEnumerator);
     }
 
-    if (SUCCEEDED(hr) && (NULL == *ppDevice))
-    {
+    if (SUCCEEDED(hr) && (NULL == *ppDevice)) {
         // If nothing went wrong but we haven't found a device, return failure
         hr = E_FAIL;
     }
@@ -188,17 +163,14 @@ struct WAVEHEADER
 };
 
 //  Static RIFF header, we'll append the format to it.
-const BYTE WaveHeaderTemplate[] = 
-{
+const BYTE WaveHeaderTemplate[] = {
     'R',   'I',   'F',   'F',  0x00,  0x00,  0x00,  0x00, 'W',   'A',   'V',   'E',   'f',   'm',   't',   ' ', 0x00, 0x00, 0x00, 0x00
 };
 
 //  Static wave DATA tag.
 const BYTE WaveData[] = { 'd', 'a', 't', 'a'};
 
-/// <summary>
 /// Write the WAV file header contents. 
-/// </summary>
 /// <param name="waveFile">
 /// [in] Handle to file where header will be written.
 /// </param>
@@ -211,8 +183,7 @@ const BYTE WaveData[] = { 'd', 'a', 't', 'a'};
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT WriteWaveHeader(HANDLE waveFile, const WAVEFORMATEX *pWaveFormat, DWORD dataSize)
-{
+HRESULT WriteWaveHeader(HANDLE waveFile, const WAVEFORMATEX *pWaveFormat, DWORD dataSize) {
     DWORD waveHeaderSize = sizeof(WAVEHEADER) + sizeof(WAVEFORMATEX) + pWaveFormat->cbSize + sizeof(WaveData) + sizeof(DWORD);
     WAVEHEADER waveHeader;
     DWORD bytesWritten;
@@ -223,34 +194,28 @@ HRESULT WriteWaveHeader(HANDLE waveFile, const WAVEFORMATEX *pWaveFormat, DWORD 
     waveHeader.dwFmtSize = sizeof(WAVEFORMATEX) + pWaveFormat->cbSize;
 
     // Write the file header
-    if (!WriteFile(waveFile, &waveHeader, sizeof(waveHeader), &bytesWritten, NULL))
-    {
+    if (!WriteFile(waveFile, &waveHeader, sizeof(waveHeader), &bytesWritten, NULL)) {
         return E_FAIL;
     }
 
     // Write the format
-    if (!WriteFile(waveFile, pWaveFormat, sizeof(WAVEFORMATEX) + pWaveFormat->cbSize, &bytesWritten, NULL))
-    {
+    if (!WriteFile(waveFile, pWaveFormat, sizeof(WAVEFORMATEX) + pWaveFormat->cbSize, &bytesWritten, NULL)) {
         return E_FAIL;
     }
 
     // Write the data header
-    if (!WriteFile(waveFile, WaveData, sizeof(WaveData), &bytesWritten, NULL))
-    {
+    if (!WriteFile(waveFile, WaveData, sizeof(WaveData), &bytesWritten, NULL)) {
         return E_FAIL;
     }
 
-    if (!WriteFile(waveFile, &dataSize, sizeof(dataSize), &bytesWritten, NULL))
-    {
+    if (!WriteFile(waveFile, &dataSize, sizeof(dataSize), &bytesWritten, NULL)) {
         return E_FAIL;
     }
 
     return S_OK;
 }
 
-/// <summary>
 /// Get the name of the file where WAVE data will be stored.
-/// </summary>
 /// <param name="waveFileName">
 /// [out] String buffer that will receive wave file name.
 /// </param>
@@ -260,13 +225,11 @@ HRESULT WriteWaveHeader(HANDLE waveFile, const WAVEFORMATEX *pWaveFormat, DWORD 
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT GetWaveFileName(wchar_t *waveFileName, UINT waveFileNameSize)
-{
+HRESULT GetWaveFileName(wchar_t *waveFileName, UINT waveFileNameSize) {
     wchar_t *knownPath = NULL;
     HRESULT hr = SHGetKnownFolderPath(FOLDERID_Music, 0, NULL, &knownPath);
 
-    if (SUCCEEDED(hr))
-    {
+    if (SUCCEEDED(hr)) {
         // Get the time
         wchar_t timeString[MAX_PATH];
         GetTimeFormatEx(NULL, 0, NULL, L"hh'-'mm'-'ss", timeString, _countof(timeString));
@@ -279,17 +242,14 @@ HRESULT GetWaveFileName(wchar_t *waveFileName, UINT waveFileNameSize)
     return hr;
 }
 
-/// <summary>
 /// Create the first connected Kinect sensor found.
-/// </summary>
 /// <param name="ppNuiSensor">
 /// [out] Pointer to hold reference to created INuiSensor object.
 /// </param>
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT CreateFirstConnected(INuiSensor **ppNuiSensor)
-{
+HRESULT CreateFirstConnected(INuiSensor **ppNuiSensor) {
     INuiSensor *pNuiSensor = NULL;
     int iSensorCount = 0;
     HRESULT hr = S_OK;
@@ -297,25 +257,21 @@ HRESULT CreateFirstConnected(INuiSensor **ppNuiSensor)
     *ppNuiSensor = NULL;
 
     hr = NuiGetSensorCount(&iSensorCount);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         return hr;
     }
 
     // Look at each Kinect sensor
-    for (int i = 0; i < iSensorCount; ++i)
-    {
+    for (int i = 0; i < iSensorCount; ++i) {
         // Create the sensor so we can check status, if we can't create it, move on to the next
         hr = NuiCreateSensorByIndex(i, &pNuiSensor);
-        if (FAILED(hr))
-        {
+        if (FAILED(hr)) {
             continue;
         }
 
         // Get the status of the sensor, and if connected, then we can initialize it
         hr = pNuiSensor->NuiStatus();
-        if (S_OK == hr)
-        {
+        if (S_OK == hr) {
             *ppNuiSensor = pNuiSensor;
             pNuiSensor = NULL;
             break;
@@ -325,8 +281,7 @@ HRESULT CreateFirstConnected(INuiSensor **ppNuiSensor)
         SafeRelease(pNuiSensor);
     }
 
-    if (SUCCEEDED(hr) && (NULL == *ppNuiSensor))
-    {
+    if (SUCCEEDED(hr) && (NULL == *ppNuiSensor)) {
         // If nothing went wrong but we haven't found a sensor, return failure
         hr = E_FAIL;
     }
@@ -335,9 +290,7 @@ HRESULT CreateFirstConnected(INuiSensor **ppNuiSensor)
     return hr;
 }
 
-/// <summary>
 /// Capture raw audio from Kinect USB audio device and write it out to a WAVE file.
-/// </summary>
 /// <param name="capturer">
 /// [in] Object used to capture raw audio data from Kinect USB audio device.
 /// </param>
@@ -350,21 +303,17 @@ HRESULT CreateFirstConnected(INuiSensor **ppNuiSensor)
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT CaptureAudio(CWASAPICapture *capturer, HANDLE waveFile, const wchar_t *waveFileName)
-{
+HRESULT CaptureAudio(CWASAPICapture *capturer, HANDLE waveFile, const wchar_t *waveFileName) {
     HRESULT hr = S_OK;
     wchar_t ch;
 
     // Write a placeholder wave file header. Actual size of data section will be fixed up later.
     hr = WriteWaveHeader(waveFile, capturer->GetOutputFormat(), 0);
-    if (SUCCEEDED(hr))
-    {
-        if (capturer->Start(waveFile))
-        {
+    if (SUCCEEDED(hr)) {
+        if (capturer->Start(waveFile)) {
             printf_s("Capturing audio data to file %S\nPress 's' to stop capturing.\n", waveFileName);
 
-            do
-            {
+            do {
                 ch = _getwch();
             } while (L'S' != towupper(ch));
 
@@ -376,8 +325,7 @@ HRESULT CaptureAudio(CWASAPICapture *capturer, HANDLE waveFile, const wchar_t *w
             SetFilePointer(waveFile, 0, NULL, FILE_BEGIN);
             hr = WriteWaveHeader(waveFile, capturer->GetOutputFormat(), capturer->BytesCaptured());
         }
-        else
-        {
+        else {
             hr = E_FAIL;
         }
     }
@@ -385,17 +333,14 @@ HRESULT CaptureAudio(CWASAPICapture *capturer, HANDLE waveFile, const wchar_t *w
     return hr;
 }
 
-/// <summary>
 /// The core of the sample.
 ///
 /// Pick an audio device that corresponds to a Kinect sensor, then capture data from
 /// that device and write it to a file.
-/// </summary>
 /// <returns>
 /// EXIT_SUCCESS if function was successful, otherwise EXIT_FAILURE.
 /// </returns>
-int wmain()
-{
+int wmain() {
     wchar_t waveFileName[MAX_PATH];
     INuiSensor *pNuiSensor = NULL;
     IMMDevice *device = NULL;
@@ -408,59 +353,47 @@ int wmain()
 
     //  A GUI application should use COINIT_APARTMENTTHREADED instead of COINIT_MULTITHREADED.
     HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
-    if (SUCCEEDED(hr))
-    {
+    if (SUCCEEDED(hr)) {
         // Create the first connected Kinect sensor found.
         hr = CreateFirstConnected(&pNuiSensor);
-        if (SUCCEEDED(hr))
-        {
+        if (SUCCEEDED(hr)) {
             //  Find the audio device corresponding to the kinect sensor.
             hr = GetMatchingAudioDevice(pNuiSensor, &device);
-            if (SUCCEEDED(hr))
-            {
+            if (SUCCEEDED(hr)) {
                 // Create the wave file that will contain audio data
                 hr = GetWaveFileName(waveFileName, _countof(waveFileName));
-                if (SUCCEEDED(hr))
-                {
+                if (SUCCEEDED(hr)) {
                     waveFile = CreateFile(waveFileName, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, 
                         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, 
                         NULL);
-                    if (INVALID_HANDLE_VALUE != waveFile)
-                    {
+                    if (INVALID_HANDLE_VALUE != waveFile) {
                         //  Instantiate a capturer
                         capturer = new (std::nothrow) CWASAPICapture(device);
-                        if ((NULL != capturer) && capturer->Initialize(TargetLatency))
-                        {
+                        if ((NULL != capturer) && capturer->Initialize(TargetLatency)) {
                             hr = CaptureAudio(capturer, waveFile, waveFileName);
-                            if (FAILED(hr))
-                            {
+                            if (FAILED(hr)) {
                                 printf_s("Unable to capture audio data.\n");
                             }
                         }
-                        else
-                        {
+                        else {
                             printf_s("Unable to initialize capturer.\n");
                             hr = E_FAIL;
                         }
                     }
-                    else
-                    {
+                    else {
                         printf_s("Unable to create output WAV file %S.\nAnother application might be using this file.\n", waveFileName);
                         hr = E_FAIL;
                     }
                 }
-                else
-                {
+                else {
                     printf_s("Unable to construct output WAV file path.\n");
                 }
             }
-            else
-            {
+            else {
                 printf_s("No matching audio device found!\n");
             }
         }
-        else
-        {
+        else {
             printf_s("No ready Kinect found!\n");
         }
     }
@@ -469,14 +402,13 @@ int wmain()
     wchar_t ch = _getwch();
     UNREFERENCED_PARAMETER(ch);
 
-    if (INVALID_HANDLE_VALUE != waveFile)
-    {
+    if (INVALID_HANDLE_VALUE != waveFile) {
         CloseHandle(waveFile);
     }
 
     delete capturer;
     SafeRelease(pNuiSensor);
     SafeRelease(device);
-    CoUninitialize();
+
     return SUCCEEDED(hr) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

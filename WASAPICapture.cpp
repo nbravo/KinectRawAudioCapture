@@ -1,21 +1,9 @@
-﻿//------------------------------------------------------------------------------
-// <copyright file="WASAPICapture.cpp" company="Microsoft">
-//     Copyright (c) Microsoft Corporation.  All rights reserved.
-// </copyright>
-// <summary>
-// This module provides sample code used to demonstrate capturing raw audio streams from
-// the Kinect 4-microphone array.
-// </summary>
-//------------------------------------------------------------------------------
-
-#include "StdAfx.h"
+﻿#include "StdAfx.h"
 #include <assert.h>
 #include <avrt.h>
 #include "WASAPICapture.h"
 
-/// <summary>
 /// Initializes an instance of CWASAPICapture type.
-/// </summary>
 CWASAPICapture::CWASAPICapture(IMMDevice *Endpoint) : 
     _Endpoint(Endpoint),
     _AudioClient(NULL),
@@ -33,21 +21,16 @@ CWASAPICapture::CWASAPICapture(IMMDevice *Endpoint) :
     _OutputBufferSize(0),
     _OutputBuffer(NULL),
     _OutputSample(NULL),
-    _BytesCaptured(0)
-{
+    _BytesCaptured(0) {
     _Endpoint->AddRef();    // Since we're holding a copy of the endpoint, take a reference to it.  It'll be released in Shutdown();
 }
 
-/// <summary>
 /// Uninitialize an instance of CWASAPICapture type.
-/// </summary>
 /// <remarks>
 /// Shuts down the capture code and frees all the resources.
 /// </remarks>
-CWASAPICapture::~CWASAPICapture(void) 
-{
-    if (NULL != _CaptureThread)
-    {
+CWASAPICapture::~CWASAPICapture(void) {
+    if (NULL != _CaptureThread) {
         SetEvent(_ShutdownEvent);
         WaitForSingleObject(_CaptureThread, INFINITE);
         CloseHandle(_CaptureThread);
@@ -56,8 +39,7 @@ CWASAPICapture::~CWASAPICapture(void)
 
     _CaptureFile = INVALID_HANDLE_VALUE;
 
-    if (NULL != _ShutdownEvent)
-    {
+    if (NULL != _ShutdownEvent) {
         CloseHandle(_ShutdownEvent);
         _ShutdownEvent = NULL;
     }
@@ -67,8 +49,7 @@ CWASAPICapture::~CWASAPICapture(void)
     SafeRelease(_CaptureClient);
     SafeRelease(_Resampler);
 
-    if (NULL != _MixFormat)
-    {
+    if (NULL != _MixFormat) {
         CoTaskMemFree(_MixFormat);
         _MixFormat = NULL;
     }
@@ -79,23 +60,19 @@ CWASAPICapture::~CWASAPICapture(void)
     SafeRelease(_OutputSample);
 }
 
-/// <summary>
 /// Initialize the capturer.
-/// </summary>
 /// <param name="EngineLatency">
 /// Number of milliseconds of acceptable lag between live sound being produced and recording operation.
 /// </param>
 /// <returns>
 /// true if capturer was initialized successfully, false otherwise.
 /// </returns>
-bool CWASAPICapture::Initialize(UINT32 EngineLatency)
-{
+bool CWASAPICapture::Initialize(UINT32 EngineLatency) {
     //
     //  Create our shutdown event - we want auto reset events that start in the not-signaled state.
     //
     _ShutdownEvent = CreateEventEx(NULL, NULL, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
-    if (NULL == _ShutdownEvent)
-    {
+    if (NULL == _ShutdownEvent) {
         printf_s("Unable to create shutdown event: %d.\n", GetLastError());
         return false;
     }    
@@ -104,8 +81,7 @@ bool CWASAPICapture::Initialize(UINT32 EngineLatency)
     //  Now activate an IAudioClient object on our preferred endpoint and retrieve the mix format for that endpoint.
     //
     HRESULT hr = _Endpoint->Activate(__uuidof(IAudioClient), CLSCTX_INPROC_SERVER, NULL, reinterpret_cast<void **>(&_AudioClient));
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         printf_s("Unable to activate audio client: %x.\n", hr);
         return false;
     }
@@ -113,8 +89,7 @@ bool CWASAPICapture::Initialize(UINT32 EngineLatency)
     //
     // Load the MixFormat.  This may differ depending on the shared mode used
     //
-    if (!LoadFormat())
-    {
+    if (!LoadFormat()) {
         printf_s("Failed to load the mix format \n");
         return false;
     }
@@ -124,8 +99,7 @@ bool CWASAPICapture::Initialize(UINT32 EngineLatency)
     //
     _EngineLatencyInMS = EngineLatency;
 
-    if (!InitializeAudioEngine())
-    {
+    if (!InitializeAudioEngine()) {
         return false;
     }
 
@@ -133,23 +107,20 @@ bool CWASAPICapture::Initialize(UINT32 EngineLatency)
     _OutputBufferSize = _EngineLatencyInMS * _OutFormat.nAvgBytesPerSec / 1000;
 
     hr = CreateResamplerBuffer(_InputBufferSize, &_InputSample, &_InputBuffer);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         printf_s("Unable to allocate input buffer.");
         return false;
     }
 
     hr = CreateResamplerBuffer(_OutputBufferSize, &_OutputSample, &_OutputBuffer);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         printf_s("Unable to allocate output buffer.");
         return false;
     }
 
     // Create resampler object
     hr = CreateResampler(_MixFormat, &_OutFormat, &_Resampler);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         printf_s("Unable to create audio resampler\n");
         return false;
     }
@@ -157,17 +128,14 @@ bool CWASAPICapture::Initialize(UINT32 EngineLatency)
     return true;
 }
 
-/// <summary>
 ///  Start capturing audio data.
-/// </summary>
 /// <param name="waveFile">
 /// [in] Handle to wave file where audio data will be written.
 /// </param>
 /// <returns>
 /// true if capturer has successfully started capturing audio data, false otherwise.
 /// </returns>
-bool CWASAPICapture::Start(HANDLE waveFile)
-{
+bool CWASAPICapture::Start(HANDLE waveFile) {
     HRESULT hr;
 
     _BytesCaptured = 0;
@@ -177,8 +145,7 @@ bool CWASAPICapture::Start(HANDLE waveFile)
     //  Now create the thread which is going to drive the capture.
     //
     _CaptureThread = CreateThread(NULL, 0, WASAPICaptureThread, this, 0, NULL);
-    if (NULL == _CaptureThread)
-    {
+    if (NULL == _CaptureThread) {
         printf_s("Unable to create transport thread: %x.", GetLastError());
         return false;
     }
@@ -187,8 +154,7 @@ bool CWASAPICapture::Start(HANDLE waveFile)
     //  We're ready to go, start capturing!
     //
     hr = _AudioClient->Start();
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         printf_s("Unable to start capture client: %x.\n", hr);
         return false;
     }
@@ -196,30 +162,24 @@ bool CWASAPICapture::Start(HANDLE waveFile)
     return true;
 }
 
-/// <summary>
 /// Stop the capturer.
-/// </summary>
-void CWASAPICapture::Stop()
-{
+void CWASAPICapture::Stop() {
     HRESULT hr;
 
     //
     //  Tell the capture thread to shut down, wait for the thread to complete then clean up all the stuff we 
     //  allocated in Start().
     //
-    if (NULL != _ShutdownEvent)
-    {
+    if (NULL != _ShutdownEvent) {
         SetEvent(_ShutdownEvent);
     }
 
     hr = _AudioClient->Stop();
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         printf_s("Unable to stop audio client: %x\n", hr);
     }
 
-    if (NULL != _CaptureThread)
-    {
+    if (NULL != _CaptureThread) {
         WaitForSingleObject(_CaptureThread, INFINITE);
 
         CloseHandle(_CaptureThread);
@@ -228,49 +188,40 @@ void CWASAPICapture::Stop()
 }
 
 
-/// <summary>
 /// Capture thread - captures audio from WASAPI, processes it with a resampler and writes it to file.
-/// </summary>
 /// <param name="Context">
 /// [in] Thread data, representing an instance of CWASAPICapture type.
 /// </param>
 /// <returns>
 /// Thread return value.
 /// </returns>
-DWORD CWASAPICapture::WASAPICaptureThread(LPVOID Context)
-{
+DWORD CWASAPICapture::WASAPICaptureThread(LPVOID Context) {
     CWASAPICapture *capturer = static_cast<CWASAPICapture *>(Context);
     return capturer->DoCaptureThread();
 }
 
-/// <summary>
 /// Capture thread - captures audio from WASAPI, processes it with a resampler and writes it to file.
-/// </summary>
 /// <returns>
 /// Thread return value.
 /// </returns>
-DWORD CWASAPICapture::DoCaptureThread()
-{
+DWORD CWASAPICapture::DoCaptureThread() {
     bool stillPlaying = true;
     HANDLE mmcssHandle = NULL;
     DWORD mmcssTaskIndex = 0;
 
     HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         printf_s("Unable to initialize COM in render thread: %x\n", hr);
         return hr;
     }
 
 
     mmcssHandle = AvSetMmThreadCharacteristics(L"Audio", &mmcssTaskIndex);
-    if (mmcssHandle == NULL)
-    {
+    if (mmcssHandle == NULL) {
         printf_s("Unable to enable MMCSS on capture thread: %d\n", GetLastError());
     }
 
-    while (stillPlaying)
-    {
+    while (stillPlaying) {
         HRESULT hr;
         //
         //  We want to wait for half the desired latency in milliseconds.
@@ -279,8 +230,7 @@ DWORD CWASAPICapture::DoCaptureThread()
         //  next set of samples from the engine.
         //
         DWORD waitResult = WaitForSingleObject(_ShutdownEvent, _EngineLatencyInMS / 2);
-        switch (waitResult)
-        {
+        switch (waitResult) {
         case WAIT_OBJECT_0 + 0:
             // If _ShutdownEvent has been set, we're done and should exit the main capture loop.
             stillPlaying = false;
@@ -295,29 +245,23 @@ DWORD CWASAPICapture::DoCaptureThread()
             bool isEmpty = false;
 
             // Keep fetching audio in a tight loop as long as audio device still has data.
-            while (!isEmpty && (WAIT_OBJECT_0 != WaitForSingleObject(_ShutdownEvent, 0)))
-            {
+            while (!isEmpty && (WAIT_OBJECT_0 != WaitForSingleObject(_ShutdownEvent, 0))) {
                 hr = _CaptureClient->GetBuffer(&pData, &framesAvailable, &flags, NULL, NULL);
-                if (SUCCEEDED(hr))
-                {
-                    if ( (AUDCLNT_S_BUFFER_EMPTY == hr) || (0 == framesAvailable) )
-                    {
+                if (SUCCEEDED(hr)) {
+                    if ( (AUDCLNT_S_BUFFER_EMPTY == hr) || (0 == framesAvailable) ) {
                         isEmpty = true;
                     }
-                    else
-                    {
+                    else {
                         DWORD bytesAvailable = framesAvailable * _MixFrameSize;
 
                         // Process input to resampler
                         hr = ProcessResamplerInput(pData, bytesAvailable, flags);
-                        if (SUCCEEDED(hr))
-                        {
+                        if (SUCCEEDED(hr)) {
                             DWORD bytesWritten;
 
                             // Process output from resampler
                             hr = ProcessResamplerOutput(&bytesWritten);
-                            if (SUCCEEDED(hr))
-                            {
+                            if (SUCCEEDED(hr)) {
                                 //  Audio capture was successful, so bump the capture buffer pointer.
                                 _BytesCaptured += bytesWritten;
                             }
@@ -325,8 +269,7 @@ DWORD CWASAPICapture::DoCaptureThread()
                     }
 
                     hr = _CaptureClient->ReleaseBuffer(framesAvailable);
-                    if (FAILED(hr))
-                    {
+                    if (FAILED(hr)) {
                         printf_s("Unable to release capture buffer: %x!\n", hr);
                     }
                 }
@@ -342,9 +285,7 @@ DWORD CWASAPICapture::DoCaptureThread()
     return 0;
 }
 
-/// <summary>
 /// Take audio data captured from WASAPI and feed it as input to audio resampler.
-/// </summary>
 /// <param name="pBuffer">
 /// [in] Buffer holding audio data from WASAPI.
 /// </param>
@@ -357,15 +298,13 @@ DWORD CWASAPICapture::DoCaptureThread()
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT CWASAPICapture::ProcessResamplerInput(BYTE *pBuffer, DWORD bufferSize, DWORD flags)
-{
+HRESULT CWASAPICapture::ProcessResamplerInput(BYTE *pBuffer, DWORD bufferSize, DWORD flags) {
     HRESULT hr = S_OK;
     BYTE* pLocked = NULL;
     DWORD maxLength;
 
     hr = _InputBuffer->Lock(&pLocked, &maxLength, NULL);
-    if (SUCCEEDED(hr))
-    {
+    if (SUCCEEDED(hr)) {
         DWORD dataToCopy = min(bufferSize, maxLength);
 
         //
@@ -374,20 +313,17 @@ HRESULT CWASAPICapture::ProcessResamplerInput(BYTE *pBuffer, DWORD bufferSize, D
         //  We only really care about the silent flag since we want to put frames of silence into the buffer
         //  when we receive silence.  We rely on the fact that a logical bit 0 is silence for both float and int formats.
         //
-        if (flags & AUDCLNT_BUFFERFLAGS_SILENT)
-        {
+        if (flags & AUDCLNT_BUFFERFLAGS_SILENT) {
             //  Fill 0s from the capture buffer to the output buffer.
             ZeroMemory(pLocked, dataToCopy);
         }
-        else
-        {
+        else {
             //  Copy data from the audio engine buffer to the output buffer.
             memcpy_s(pLocked, maxLength, pBuffer, bufferSize);
         }
 
         hr = _InputBuffer->SetCurrentLength(dataToCopy);
-        if (SUCCEEDED(hr))
-        {
+        if (SUCCEEDED(hr)) {
             hr = _Resampler->ProcessInput(0, _InputSample, 0);
         }
 
@@ -397,17 +333,14 @@ HRESULT CWASAPICapture::ProcessResamplerInput(BYTE *pBuffer, DWORD bufferSize, D
     return hr;
 }
 
-/// <summary>
 /// Get data output from audio resampler and write it to file.
-/// </summary>
 /// <param name="pBytesWritten">
 /// [out] On success, will receive number of bytes written to file.
 /// </param>
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-HRESULT CWASAPICapture::ProcessResamplerOutput(DWORD *pBytesWritten)
-{
+HRESULT CWASAPICapture::ProcessResamplerOutput(DWORD *pBytesWritten) {
     HRESULT hr = S_OK;
     MFT_OUTPUT_DATA_BUFFER outBuffer;
     DWORD outStatus;
@@ -418,19 +351,15 @@ HRESULT CWASAPICapture::ProcessResamplerOutput(DWORD *pBytesWritten)
     outBuffer.pEvents = 0;
 
     hr = _Resampler->ProcessOutput(0, 1, &outBuffer, &outStatus);
-    if (SUCCEEDED(hr))
-    {
+    if (SUCCEEDED(hr)) {
         BYTE* pLocked = NULL;
 
         hr = _OutputBuffer->Lock(&pLocked, NULL, NULL);
-        if (SUCCEEDED(hr))
-        {
+        if (SUCCEEDED(hr)) {
             DWORD lockedLength;
             hr = _OutputBuffer->GetCurrentLength( &lockedLength );
-            if (SUCCEEDED(hr))
-            {
-                if (!WriteFile(_CaptureFile, pLocked, lockedLength, pBytesWritten, NULL))
-                {
+            if (SUCCEEDED(hr)) {
+                if (!WriteFile(_CaptureFile, pLocked, lockedLength, pBytesWritten, NULL)) {
                     hr = E_FAIL;
                 }
             }
@@ -442,25 +371,20 @@ HRESULT CWASAPICapture::ProcessResamplerOutput(DWORD *pBytesWritten)
     return hr;
 }
 
-/// <summary>
 /// Initialize WASAPI in timer driven mode, and retrieve a capture client for the transport.
-/// </summary>
 /// <returns>
 /// S_OK on success, otherwise failure code.
 /// </returns>
-bool CWASAPICapture::InitializeAudioEngine()
-{
+bool CWASAPICapture::InitializeAudioEngine() {
     HRESULT hr = _AudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_NOPERSIST, _EngineLatencyInMS*10000, 0, _MixFormat, NULL);
 
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         printf_s("Unable to initialize audio client: %x.\n", hr);
         return false;
     }
 
     hr = _AudioClient->GetService(IID_PPV_ARGS(&_CaptureClient));
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         printf_s("Unable to get new capture client: %x.\n", hr);
         return false;
     }
@@ -468,18 +392,14 @@ bool CWASAPICapture::InitializeAudioEngine()
     return true;
 }
 
-/// <summary>
 /// Retrieve the format we'll use to capture samples.
 ///  We use the Mix format since we're capturing in shared mode.
-/// </summary>
 /// <returns>
 /// true if format was loaded successfully, false otherwise.
 /// </returns>
-bool CWASAPICapture::LoadFormat()
-{
+bool CWASAPICapture::LoadFormat() {
     HRESULT hr = _AudioClient->GetMixFormat(&_MixFormat);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         printf_s("Unable to get mix format on audio client: %x.\n", hr);
         return false;
     }
