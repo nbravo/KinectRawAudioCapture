@@ -141,18 +141,14 @@ bool CWASAPICapture::Start(HANDLE waveFile) {
     _BytesCaptured = 0;
     _CaptureFile = waveFile;
 
-    //
     //  Now create the thread which is going to drive the capture.
-    //
     _CaptureThread = CreateThread(NULL, 0, WASAPICaptureThread, this, 0, NULL);
     if (NULL == _CaptureThread) {
         printf_s("Unable to create transport thread: %x.", GetLastError());
         return false;
     }
 
-    //
     //  We're ready to go, start capturing!
-    //
     hr = _AudioClient->Start();
     if (FAILED(hr)) {
         printf_s("Unable to start capture client: %x.\n", hr);
@@ -186,7 +182,6 @@ void CWASAPICapture::Stop() {
         _CaptureThread = NULL;
     }
 }
-
 
 /// Capture thread - captures audio from WASAPI, processes it with a resampler and writes it to file.
 /// <param name="Context">
@@ -223,12 +218,9 @@ DWORD CWASAPICapture::DoCaptureThread() {
 
     while (stillPlaying) {
         HRESULT hr;
-        //
         //  We want to wait for half the desired latency in milliseconds.
-        //
         //  That way we'll wake up half way through the processing period to pull the 
         //  next set of samples from the engine.
-        //
         DWORD waitResult = WaitForSingleObject(_ShutdownEvent, _EngineLatencyInMS / 2);
         switch (waitResult) {
         case WAIT_OBJECT_0 + 0:
@@ -307,12 +299,10 @@ HRESULT CWASAPICapture::ProcessResamplerInput(BYTE *pBuffer, DWORD bufferSize, D
     if (SUCCEEDED(hr)) {
         DWORD dataToCopy = min(bufferSize, maxLength);
 
-        //
         //  The flags on capture tell us information about the data.
         //
         //  We only really care about the silent flag since we want to put frames of silence into the buffer
         //  when we receive silence.  We rely on the fact that a logical bit 0 is silence for both float and int formats.
-        //
         if (flags & AUDCLNT_BUFFERFLAGS_SILENT) {
             //  Fill 0s from the capture buffer to the output buffer.
             ZeroMemory(pLocked, dataToCopy);

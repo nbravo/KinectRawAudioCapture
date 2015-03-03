@@ -59,8 +59,7 @@ HRESULT GetGlobalId(IMMDevice *pDevice, wchar_t **ppszGlobalId) {
 /// <returns>
 /// true if the global device ID corresponds to the sensor specified, false otherwise.
 /// </returns>
-bool IsMatchingAudioDevice(INuiSensor *pNuiSensor, wchar_t *pszGlobalId)
-{
+bool IsMatchingAudioDevice(INuiSensor *pNuiSensor, wchar_t *pszGlobalId) {
     // Get USB device name from the sensor
     BSTR arrayName = pNuiSensor->NuiAudioArrayId(); // e.g. "USB\\VID_045E&PID_02BB&MI_02\\7&9FF7F87&0&0002"
 
@@ -153,8 +152,7 @@ HRESULT GetMatchingAudioDevice(INuiSensor *pNuiSensor, IMMDevice **ppDevice) {
 //
 
 //  Header for a WAV file - we define a structure describing the first few fields in the header for convenience.
-struct WAVEHEADER
-{
+struct WAVEHEADER {
     DWORD   dwRiff;                     // "RIFF"
     DWORD   dwSize;                     // Size
     DWORD   dwWave;                     // "WAVE"
@@ -348,7 +346,6 @@ int wmain() {
     CWASAPICapture *capturer = NULL;
 
     printf_s("Raw Kinect Audio Data Capture Using WASAPI\n");
-    printf_s("Copyright (c) Microsoft.  All Rights Reserved\n");
     printf_s("\n");
 
     //  A GUI application should use COINIT_APARTMENTTHREADED instead of COINIT_MULTITHREADED.

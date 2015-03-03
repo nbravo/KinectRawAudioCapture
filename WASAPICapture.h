@@ -51,9 +51,7 @@ public:
     DWORD BytesCaptured() { return _BytesCaptured; }
 
 private:
-    //
     //  Core Audio Capture member variables.
-    //
     IMMDevice *             _Endpoint;
     IAudioClient *          _AudioClient;
     IAudioCaptureClient *   _CaptureClient;
@@ -67,9 +65,7 @@ private:
     DWORD                   _MixFrameSize;
     WAVEFORMATEX            _OutFormat; 
 
-    //
     //  Capture buffer member variables
-    //
     size_t                  _InputBufferSize;
     IMFMediaBuffer *        _InputBuffer;
     IMFSample *             _InputSample;

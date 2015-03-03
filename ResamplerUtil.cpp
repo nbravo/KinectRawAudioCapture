@@ -16,50 +16,50 @@ HRESULT GetMediaSubtype(const WAVEFORMATEX* pwfx, GUID *pSubType) {
     HRESULT hr = S_OK;
 
     switch(pwfx->wFormatTag) {
-    case WAVE_FORMAT_PCM:
-    case WAVE_FORMAT_IEEE_FLOAT:
-    case WAVE_FORMAT_DTS:
-    case WAVE_FORMAT_DOLBY_AC3_SPDIF:
-    case WAVE_FORMAT_DRM:
-    case WAVE_FORMAT_WMAUDIO2:
-    case WAVE_FORMAT_WMAUDIO3:
-    case WAVE_FORMAT_WMAUDIO_LOSSLESS:
-    case WAVE_FORMAT_WMASPDIF:
-    case WAVE_FORMAT_WMAVOICE9:
-    case WAVE_FORMAT_MPEGLAYER3:
-    case WAVE_FORMAT_MPEG:
-    case WAVE_FORMAT_MPEG_HEAAC:
-    case WAVE_FORMAT_MPEG_ADTS_AAC: {
-            // These format tags map 1-to-1 to Media Foundation formats.
-            // The MSDN topic http://msdn.microsoft.com/en-us/library/aa372553(VS.85).aspx indicates that
-            // to create an audio subtype GUID one can:
-            // 1. Start with the value MFAudioFormat_Base
-            // 2. Replace the first DWORD of this GUID with the format tag
-            GUID guidSubType = MFAudioFormat_Base;
-            guidSubType.Data1 = pwfx->wFormatTag;
+        case WAVE_FORMAT_PCM:
+        case WAVE_FORMAT_IEEE_FLOAT:
+        case WAVE_FORMAT_DTS:
+        case WAVE_FORMAT_DOLBY_AC3_SPDIF:
+        case WAVE_FORMAT_DRM:
+        case WAVE_FORMAT_WMAUDIO2:
+        case WAVE_FORMAT_WMAUDIO3:
+        case WAVE_FORMAT_WMAUDIO_LOSSLESS:
+        case WAVE_FORMAT_WMASPDIF:
+        case WAVE_FORMAT_WMAVOICE9:
+        case WAVE_FORMAT_MPEGLAYER3:
+        case WAVE_FORMAT_MPEG:
+        case WAVE_FORMAT_MPEG_HEAAC:
+        case WAVE_FORMAT_MPEG_ADTS_AAC: {
+                // These format tags map 1-to-1 to Media Foundation formats.
+                // The MSDN topic http://msdn.microsoft.com/en-us/library/aa372553(VS.85).aspx indicates that
+                // to create an audio subtype GUID one can:
+                // 1. Start with the value MFAudioFormat_Base
+                // 2. Replace the first DWORD of this GUID with the format tag
+                GUID guidSubType = MFAudioFormat_Base;
+                guidSubType.Data1 = pwfx->wFormatTag;
 
-            *pSubType = guidSubType;
-            break;
+                *pSubType = guidSubType;
+                break;
         }
 
-    case WAVE_FORMAT_EXTENSIBLE: {
-            const WAVEFORMATEXTENSIBLE* pExtensible = reinterpret_cast<const WAVEFORMATEXTENSIBLE*>(pwfx);
-            // We only support PCM and IEEE float subtypes for extensible wave formats
-            if (pExtensible->SubFormat == KSDATAFORMAT_SUBTYPE_PCM) {
-                *pSubType = MFAudioFormat_PCM;
-            }
-            else if (pExtensible->SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT) {
-                *pSubType = MFAudioFormat_Float;
-            }
-            else {
+        case WAVE_FORMAT_EXTENSIBLE: {
+                const WAVEFORMATEXTENSIBLE* pExtensible = reinterpret_cast<const WAVEFORMATEXTENSIBLE*>(pwfx);
+                // We only support PCM and IEEE float subtypes for extensible wave formats
+                if (pExtensible->SubFormat == KSDATAFORMAT_SUBTYPE_PCM) {
+                    *pSubType = MFAudioFormat_PCM;
+                }
+                else if (pExtensible->SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT) {
+                    *pSubType = MFAudioFormat_Float;
+                }
+                else {
+                    hr = E_INVALIDARG;
+                }
+                break;
+        }
+
+        default: {
                 hr = E_INVALIDARG;
-            }
-            break;
-        }
-
-    default: {
-            hr = E_INVALIDARG;
-            break;
+                break;
         }
     }
 
